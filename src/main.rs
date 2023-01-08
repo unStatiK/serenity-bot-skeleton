@@ -1,8 +1,14 @@
 extern crate libc_alloc;
 
+mod commands;
+mod bot_core;
+
 use std::env;
 
-use libc_alloc::LibcAlloc;
+use commands::command_handler::CommandHandler;
+use commands::uptime::UptimeHandler;
+use commands::hello::HelloHandler;
+use commands::ping::PingHandler;
 
 use serenity::async_trait;
 use serenity::prelude::*;
@@ -10,11 +16,13 @@ use serenity::model::channel::Message;
 use serenity::framework::standard::macros::{command, group};
 use serenity::framework::standard::{StandardFramework, CommandResult};
 
+use libc_alloc::LibcAlloc;
+
 #[global_allocator]
 static ALLOCATOR: LibcAlloc = LibcAlloc;
 
 #[group]
-#[commands(ping, hello)]
+#[commands(ping, hello, uptime)]
 struct General;
 
 struct Handler;
@@ -24,11 +32,20 @@ impl EventHandler for Handler {}
 
 #[tokio::main]
 async fn main() {
-    let framework = StandardFramework::new()
-        .configure(|c| c.prefix("!")) // set the bot's prefix to "~"
-        .group(&GENERAL_GROUP);
+    init_command_system();
+    start().await;
+}
 
-    // Login with a bot token from the environment
+fn init_command_system() {
+    UptimeHandler::init();
+    HelloHandler::init();
+    PingHandler::init();
+}
+
+async fn start() {
+    let framework = StandardFramework::new()
+        .configure(|c| c.prefix("!"))
+        .group(&GENERAL_GROUP);
     let token = env::var("DISCORD_TOKEN").expect("token");
     let intents = GatewayIntents::non_privileged() | GatewayIntents::MESSAGE_CONTENT;
     let mut client = Client::builder(token, intents)
@@ -37,7 +54,6 @@ async fn main() {
         .await
         .expect("Error creating client");
 
-    // start listening for events by starting a single shard
     if let Err(why) = client.start().await {
         println!("An error occurred while running the client: {:?}", why);
     }
@@ -45,14 +61,18 @@ async fn main() {
 
 #[command]
 async fn ping(ctx: &Context, msg: &Message) -> CommandResult {
-    msg.reply(ctx, "Pong!").await?;
-
+    PingHandler::process(ctx, msg).await;
     Ok(())
 }
 
 #[command]
 async fn hello(ctx: &Context, msg: &Message) -> CommandResult {
-    msg.reply(ctx, "Hello from Rust bot!").await?;
+    HelloHandler::process(ctx, msg).await;
+    Ok(())
+}
 
+#[command]
+async fn uptime(ctx: &Context, msg: &Message) -> CommandResult {
+    UptimeHandler::process(ctx, msg).await;
     Ok(())
 }

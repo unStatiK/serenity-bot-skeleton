@@ -4,7 +4,7 @@ use std::path::Path;
 
 use rusqlite::Connection;
 
-pub struct BotDb {}
+pub struct BotDb;
 
 impl BotDb {
     pub fn get_connection() -> Connection {

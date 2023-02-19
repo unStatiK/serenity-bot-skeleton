@@ -4,11 +4,13 @@ mod commands;
 mod bot_core;
 
 use std::env;
+use std::sync::Arc;
 
 use commands::command_handler::CommandHandler;
 use commands::uptime::UptimeHandler;
 use commands::hello::HelloHandler;
 use commands::ping::PingHandler;
+use bot_core::context::BotContext;
 
 use serenity::async_trait;
 use serenity::prelude::*;
@@ -32,14 +34,17 @@ impl EventHandler for Handler {}
 
 #[tokio::main]
 async fn main() {
-    init_command_system();
     start().await;
 }
 
-fn init_command_system() {
-    UptimeHandler::init();
-    HelloHandler::init();
-    PingHandler::init();
+async fn init_context(ctx: Arc<RwLock<TypeMap>>) {
+    BotContext::init_context(ctx).await;
+}
+
+async fn init_command_system(ctx: Arc<RwLock<TypeMap>>) {
+    UptimeHandler::init(ctx.clone()).await;
+    HelloHandler::init(ctx.clone()).await;
+    PingHandler::init(ctx.clone()).await;
 }
 
 async fn start() {
@@ -53,6 +58,9 @@ async fn start() {
         .framework(framework)
         .await
         .expect("Error creating client");
+
+    init_context(client.data.clone()).await;
+    init_command_system(client.data.clone()).await;
 
     if let Err(why) = client.start().await {
         println!("An error occurred while running the client: {:?}", why);

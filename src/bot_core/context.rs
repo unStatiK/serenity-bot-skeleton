@@ -1,30 +1,38 @@
-use std::{sync::Mutex, collections::HashMap};
+use std::{sync::Arc, collections::HashMap};
 
-use once_cell::sync::Lazy;
+use serenity::prelude::{TypeMap, TypeMapKey, RwLock};
 
-pub static GLOBAL_CONTEXT: Lazy<Mutex<BotContext>> = Lazy::new(|| {
-    Mutex::new(BotContext::init())
-});
+pub struct BotMeta;
 
-pub struct BotContext {
-    bot_meta: HashMap<String, String>,
+impl TypeMapKey for BotMeta {
+    type Value = Arc<RwLock<HashMap<String, String>>>;
 }
 
+pub struct BotContext;
+
 impl BotContext {
-    pub fn init() -> BotContext {
-        BotContext {
-            bot_meta: HashMap::new()
-        }
+    pub async fn init_context(ctx: Arc<RwLock<TypeMap>>) {
+        let mut data = ctx.write().await;
+        data.insert::<BotMeta>(Arc::new(RwLock::new(HashMap::new())));
     }
 
-    pub fn get_meta_value(&mut self, key: String) -> String {
-        match self.bot_meta.get(key.as_str()) {
+    pub async fn get_meta_value(ctx: Arc<RwLock<TypeMap>>, key: String) -> String {
+        let data_read = ctx.read().await;
+        let bot_meta_lock =
+            data_read.get::<BotMeta>().expect("Expected BotMeta in TypeMap.").clone();
+        let bot_meta = bot_meta_lock.read().await;
+        match bot_meta.get(key.as_str()) {
             Some(x) => x.to_string(),
             None => "".to_string()
         }
     }
 
-    pub fn set_meta_value(&mut self, key: String, value: String) {
-        self.bot_meta.insert(key, value);
+    pub async fn set_meta_value(ctx: Arc<RwLock<TypeMap>>, key: String, value: String) {
+        let bot_meta_lock = {
+            let data_read = ctx.read().await;
+            data_read.get::<BotMeta>().expect("Expected BotMeta in TypeMap.").clone()
+        };
+        let mut rz_meta = bot_meta_lock.write().await;
+        rz_meta.insert(key, value);
     }
 }

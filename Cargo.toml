@@ -1,13 +1,13 @@
 [package]
 name = "bot"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 
 [dependencies]
 serenity = { version = "0.11.5", default-features = false, features = ["client", "gateway", "default_native_tls", "model", "simd_json"] }
 tokio = { version = "1.24.1", features = ["macros", "rt-multi-thread"] }
+sqlx = { version = "0.6.2", features = [ "runtime-tokio-native-tls", "sqlite"] }
 libc_alloc = "1.0.4"
-rusqlite = "0.28.0"
 chrono = "0.4.23"
 
 [profile.release]
